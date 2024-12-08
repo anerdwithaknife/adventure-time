@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Render 16-bit Image</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+      background-color: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+    }
+    input[type="file"] {
+      margin-bottom: 20px;
+      padding: 10px;
+      font-size: 1rem;
+    }
+    canvas {
+      display: block;
+      margin: 20px auto;
+      border: 2px solid #333;
+      background-color: #eee;
+    }
+    .instructions {
+      font-size: 0.9rem;
+      color: #555;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Render Binary File as 16-bit Image</h1>
+  <p class="instructions">Please select a binary file with 240x320 resolution in RGB565 format.</p>
+  <input type="file" id="fileInput" accept=".img" />
+  <canvas id="canvas" width="240" height="320"></canvas>
+  <p id="error" class="error" style="display: none;"></p>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      const errorElement = document.getElementById('error');
+      errorElement.style.display = 'none';
+
+      if (!file) {
+        errorElement.textContent = 'No file selected!';
+        errorElement.style.display = 'block';
+        return;
+      }
+
+      // Check file size (expected size: 240x320 pixels * 2 bytes per pixel = 153,600 bytes)
+      if (file.size !== 240 * 320 * 2) {
+        errorElement.textContent = 'Invalid file size. Expected 153,600 bytes for 240x320 RGB565 image.';
+        errorElement.style.display = 'block';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function() {
+        const data = new Uint8Array(reader.result);
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const width = 240;
+        const height = 320;
+        const imageData = ctx.createImageData(width, height);
+
+        // Convert 16-bit RGB565 to 8-bit RGBA
+        let offset = width * height * 4 - 1;
+        for (let i = 0; i < data.length; i += 2) {
+          const pixel = (data[i + 1] << 8) | data[i]; // Little-endian
+
+          const r = (pixel >> 11) & 0x1F;
+          const g = (pixel >> 5) & 0x3F;
+          const b = pixel & 0x1F;
+
+          // Scale RGB565 values to 8-bit (0-255)
+          imageData.data[offset--] = 255;             // Alpha
+          imageData.data[offset--] = (b * 255) / 31;  // Blue
+          imageData.data[offset--] = (g * 255) / 63;  // Green
+          imageData.data[offset--] = (r * 255) / 31;  // Red
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
+</body>
+</html>
